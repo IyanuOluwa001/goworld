@@ -1,0 +1,1 @@
+This is extremely important (up, 2) and should never be ignored (cap, 4) because 1111 (bin) warnings were issued and FF (hex) errors were found (low, 3) .
