@@ -1,0 +1,509 @@
+1processTxt.go:
+package main
+
+type Modifier struct {
+	Type  string // up, low, cap, hex, bin
+	Count int    // default 1
+}
+
+func ProcessText(text string) (string, error) {
+	
+	tokens := Tokenize(text)
+
+	tokens = ApplyTransformations(tokens)
+
+	tokens = FixPunctuation(tokens)
+
+	tokens = ApplyGrammarRules(tokens)
+
+	return RebuildText(tokens), nil
+}
+
+2applyTransform.go:
+package main
+
+
+func ApplyTransformations(tokens []string) []string {
+	for i := 0; i < len(tokens); i++ {
+
+		if IsModifier(tokens[i]) {
+
+			mod := ParseModifier(tokens[i])
+
+			tokens = ApplyModifier(tokens, i, mod)
+
+			tokens = RemoveToken(tokens, i)
+
+			i--
+		}
+	}
+	return tokens
+}
+
+3fixPunctuation.go:
+package main
+
+func FixPunctuation(tokens []string) []string {
+
+	// Convert tokens to string
+	text := RebuildText(tokens)
+
+	// Apply string-based fixes
+	text = FixStandardPunctuation(text)
+	text = FixApostrophes(text)
+
+	// Convert back to tokens
+	return Tokenize(text)
+}
+
+4applygramrule.go:
+package main
+
+func ApplyGrammarRules(tokens []string) []string {
+	for i := 0; i < len(tokens)-1; i++ {
+
+		if IsArticleA(tokens[i]) && StartsWithVowelOrH(tokens[i+1]) {
+			tokens[i] = FixArticleCase(tokens[i])
+		}
+	}
+	return tokens
+}
+
+5isModifier.go:
+package main
+
+func IsModifier(token string) bool {
+	if len(token) < 3 {
+		return false
+	}
+
+	if token[0] != '(' || token[len(token)-1] != ')' {
+		return false
+	}
+
+	return true
+}
+
+6applyModifier.go:
+package main
+import "strings"
+
+func ApplyModifier(tokens []string, index int, mod Modifier) []string {
+
+	// No previous words
+	if index == 0 {
+		return tokens
+	}
+
+	count := mod.Count
+	if count <= 0 {
+		count = 1
+	}
+
+	for j := 0; j < count; j++ {
+		targetIndex := index - 1 - j
+
+		if targetIndex < 0 {
+			break
+		}
+
+		word := tokens[targetIndex]
+
+		switch mod.Type {
+
+		case "up":
+			tokens[targetIndex] = strings.ToUpper(word)
+
+		case "low":
+			tokens[targetIndex] = strings.ToLower(word)
+
+		case "cap":
+			tokens[targetIndex] = Capitalize(word)
+
+		case "hex":
+			converted, err := HexToDecimal(word)
+			if err == nil {
+				tokens[targetIndex] = converted
+			}
+
+		case "bin":
+			converted, err := BinToDecimal(word)
+			if err == nil {
+				tokens[targetIndex] = converted
+			}
+		}
+	}
+
+	return tokens
+}
+
+7fixStanPunc.go:
+package main
+
+import (
+	"strings"
+	"unicode"
+)
+
+func FixStandardPunctuation(text string) string {
+
+	var result strings.Builder
+	runes := []rune(text)
+	i := 0
+
+	for i < len(runes) {
+		r := runes[i]
+
+		if isPunctuation(r) {
+			// Remove preceding space
+			if result.Len() > 0 && result.String()[result.Len()-1] == ' ' {
+				tmp := result.String()
+				result.Reset()
+				result.WriteString(tmp[:len(tmp)-1])
+			}
+
+			// Collect group of punctuations
+			start := i
+			for i < len(runes) && isPunctuation(runes[i]) {
+				i++
+			}
+			group := string(runes[start:i])
+			result.WriteString(group)
+
+			// Decide whether to add space after
+			if i < len(runes) {
+				// Don't add space if next rune is punctuation
+				if !isPunctuation(runes[i]) && !unicode.IsSpace(runes[i]) {
+					result.WriteRune(' ')
+				} else if unicode.IsSpace(runes[i]) {
+					result.WriteRune(' ')
+				}
+			}
+
+			continue
+		}
+
+		result.WriteRune(r)
+		i++
+	}
+
+	return strings.TrimSpace(result.String())
+}
+
+func isPunctuation(r rune) bool {
+	return r == '.' || 
+        r == ',' ||
+        r == '!' || 
+        r == '?' || 
+        r == ':' ||
+        r == ';'
+}
+
+8fixApos.go:
+package main
+
+import "strings"
+
+// FixApostrophes ensures proper spacing for single quotes around words.
+func FixApostrophes(text string) string {
+	var result strings.Builder
+	runes := []rune(text)
+	i := 0
+	for i < len(runes) {
+		if runes[i] == '\'' {
+			// Add opening quote
+			result.WriteRune('\'')
+			i++
+
+			// Skip any spaces immediately after opening quote
+			for i < len(runes) && runes[i] == ' ' {
+				i++
+			}
+
+			// Collect the word(s) inside quotes
+			for i < len(runes) && runes[i] != '\'' {
+				result.WriteRune(runes[i])
+				i++
+			}
+
+			// Skip any spaces before closing quote
+			for i < len(runes) && runes[i] == ' ' {
+				i++
+			}
+
+			// Add closing quote if it exists
+			if i < len(runes) && runes[i] == '\'' {
+				result.WriteRune('\'')
+				i++
+			}
+			continue
+		}
+
+		result.WriteRune(runes[i])
+		i++
+	}
+
+	return result.String()
+}
+
+9isArticle.go:
+package main
+
+func IsArticleA(word string) bool {
+	return word == "a" || word == "A"
+}
+
+10statwitvowel.go:
+package main
+import "unicode"
+
+func StartsWithVowelOrH(word string) bool {
+
+	if len(word) == 0 {
+		return false
+	}
+
+	first := unicode.ToLower(rune(word[0]))
+
+	return first == 'a' ||
+		first == 'e' ||
+		first == 'i' ||
+		first == 'o' ||
+		first == 'u' ||
+		first == 'h'
+}
+
+11fixArticlecase.go:
+package main
+
+func FixArticleCase(article string) string {
+
+	if article == "A" {
+		return "An"
+	}
+
+	return "an"
+}
+
+12parsMod.go:
+package main
+import (
+	"strconv"
+	"strings"
+)
+
+func ParseModifier(token string) Modifier {
+
+	// Remove surrounding parentheses
+	content := strings.TrimPrefix(token, "(")
+	content = strings.TrimSuffix(content, ")")
+
+	// Split by comma (if exists)
+	parts := strings.Split(content, ",")
+
+	mod := Modifier{
+		Type:  "",
+		Count: 1, // default
+	}
+
+	// First part is modifier type
+	mod.Type = strings.TrimSpace(parts[0])
+
+	// If count exists
+	if len(parts) > 1 {
+		countStr := strings.TrimSpace(parts[1])
+		count, err := strconv.Atoi(countStr)
+		if err == nil && count > 0 {
+			mod.Count = count
+		}
+	}
+
+	return mod
+}
+
+main.go:
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	if len(os.Args) != 3 {
+		fmt.Println("Usage: go run . input.txt result.txt")
+		return
+	}
+
+	inputFile := os.Args[1]
+	outputFile := os.Args[2]
+
+	content, err := os.ReadFile(inputFile)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	result, err := ProcessText(string(content))
+	if err != nil {
+		fmt.Println("Processing error:", err)
+		return
+	}
+
+	err = os.WriteFile(outputFile, []byte(result), 0644)
+	if err != nil {
+		fmt.Println("Error writing file:", err)
+		return
+	}
+}
+
+txteditortool_test.go:
+package main
+
+import "testing"
+
+//Edited
+func TestHexMultiple(t *testing.T) {
+	input := "FF 1A 2B 3C (hex, 4)"
+	expected := "255 26 43 60"
+
+	result, _ := ProcessText(input)
+
+	if result != expected {
+		t.Errorf("Expected %s, got %s", expected, result)
+	}
+}
+
+func TestUp(t *testing.T) {
+	input := "hello (up)"
+	expected := "HELLO"
+
+	result, _ := ProcessText(input)
+
+	if result != expected {
+		t.Errorf("Expected %s, got %s", expected, result)
+	}
+}
+
+func TestArticle(t *testing.T) {
+	input := "a apple"
+	expected := "an apple"
+
+	result, _ := ProcessText(input)
+
+	if result != expected {
+		t.Errorf("Expected %s, got %s", expected, result)
+	}
+}
+
+func TestGroupedPunctuation(t *testing.T) {
+	input := "What !? Wait ..."
+	expected := "What!? Wait..."
+
+	result, _ := ProcessText(input)
+
+	if result != expected {
+		t.Errorf("Expected %q, got %q", expected, result)
+	}
+}
+
+func TestUpMultiple(t *testing.T) {
+	input := "This is so exciting (up, 2)"
+	expected := "This is SO EXCITING"
+
+	result, _ := ProcessText(input)
+
+	if result != expected {
+		t.Errorf("Expected %q, got %q", expected, result)
+	}
+}
+
+
+texteditortool.go:
+package main
+
+import (
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+func Tokenize(text string) []string {
+	var tokens []string
+	var current strings.Builder
+	inParentheses := false
+
+	for _, r := range text {
+		switch {
+		case r == '(':
+			// flush current word
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			inParentheses = true
+			current.WriteRune(r)
+
+		case r == ')':
+			current.WriteRune(r)
+			tokens = append(tokens, current.String())
+			current.Reset()
+			inParentheses = false
+
+		case unicode.IsSpace(r):
+			if inParentheses {
+				current.WriteRune(r)
+			} else {
+				if current.Len() > 0 {
+					tokens = append(tokens, current.String())
+					current.Reset()
+				}
+			}
+
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
+}
+
+func RebuildText(tokens []string) string {
+	return strings.Join(tokens, " ")
+}
+
+func RemoveToken(tokens []string, index int) []string {
+	return append(tokens[:index], tokens[index+1:]...)
+}
+
+func HexToDecimal(s string) (string, error) {
+	n, err := strconv.ParseInt(s, 16, 64)
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatInt(n, 10), nil
+}
+
+func BinToDecimal(s string) (string, error) {
+	n, err := strconv.ParseInt(s, 2, 64)
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatInt(n, 10), nil
+}
+
+func Capitalize(word string) string {
+	if len(word) == 0 {
+		return word
+	}
+	runes := []rune(word)
+	runes[0] = unicode.ToUpper(runes[0])
+	for i := 1; i < len(runes); i++ {
+		runes[i] = unicode.ToLower(runes[i])
+	}
+	return string(runes)
+}
