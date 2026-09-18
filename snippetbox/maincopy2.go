@@ -50,7 +50,7 @@ func snippetCreatePost(w http.ResponseWriter, r *http.Request) {
 // register their routes with something called the default
 // servemux. This is just a regular servemux like we’ve already been using, but which is
 // initialized automatically by Go and stored in the http.DefaultServeMux global variable.
-func main() {
+func maincopy2() {
 	mux := http.NewServeMux()
 	//mux.HandleFunc("/{$}", home) // Restrict this route to exact matches on / only.
 	//mux.HandleFunc("/snippet/view/{id}", snippetView)
