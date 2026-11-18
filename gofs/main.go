@@ -12,6 +12,7 @@ func main() {
 		return
 	}
 
+	//replace all instances of \n with actual newlines
 	input := strings.ReplaceAll(os.Args[1], "\\n", "\n")
 	banner := os.Args[2]
 	filename := banner + ".txt"
